@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anuraga</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Cinzel:wght@300;400&family=EB+Garamond:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --deep: #0a0e1a;
+    --ocean-dark: #0d1b2e;
+    --ocean-mid: #0f2744;
+    --twilight-purple: #1a1535;
+    --horizon-amber: #c97d2a;
+    --horizon-rose: #8b3a52;
+    --star-white: #e8e4d9;
+    --foam: rgba(232, 228, 217, 0.15);
+    --glow: rgba(201, 125, 42, 0.3);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--deep);
+    color: var(--star-white);
+    font-family: 'Cormorant Garamond', serif;
+    overflow-x: hidden;
+    cursor: none;
+  }
+
+  /* Custom cursor */
+  .cursor {
+    position: fixed;
+    width: 6px; height: 6px;
+    background: var(--horizon-amber);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9999;
+    transition: transform 0.1s;
+    mix-blend-mode: screen;
+  }
+  .cursor-trail {
+    position: fixed;
+    width: 30px; height: 30px;
+    border: 1px solid rgba(201,125,42,0.3);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9998;
+    transition: left 0.15s ease, top 0.15s ease;
+  }
+
+  /* ---- CANVAS OCEAN ---- */
+  #ocean-canvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+  }
+
+  /* ---- SECTIONS ---- */
+  section {
+    position: relative;
+    z-index: 10;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 40px;
+  }
+
+  /* ---- INTRO ---- */
+  #intro {
+    min-height: 100vh;
+  }
+
+  .opening-line {
+    font-family: 'Cinzel', serif;
+    font-weight: 300;
+    font-size: clamp(0.6rem, 1.2vw, 0.85rem);
+    letter-spacing: 0.5em;
+    text-transform: uppercase;
+    color: var(--horizon-amber);
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeUp 1.2s ease forwards 0.5s;
+    margin-bottom: 3rem;
+  }
+
+  .main-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 300;
+    font-size: clamp(3rem, 10vw, 8rem);
+    line-height: 0.9;
+    text-align: center;
+    opacity: 0;
+    transform: translateY(30px);
+    animation: fadeUp 1.5s ease forwards 0.9s;
+    letter-spacing: -0.02em;
+  }
+
+  .main-title em {
+    font-style: italic;
+    color: var(--horizon-amber);
+    display: block;
+  }
+
+  .scroll-hint {
+    position: absolute;
+    bottom: 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    opacity: 0;
+    animation: fadeUp 1s ease forwards 2.5s;
+  }
+  .scroll-hint span {
+    font-size: 0.65rem;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    color: rgba(232,228,217,0.4);
+    font-family: 'Cinzel', serif;
+  }
+  .scroll-line {
+    width: 1px;
+    height: 60px;
+    background: linear-gradient(to bottom, rgba(201,125,42,0.6), transparent);
+    animation: scrollPulse 2s ease infinite 3s;
+  }
+
+  /* ---- POEM SECTIONS ---- */
+  .poem-section {
+    text-align: center;
+    max-width: 700px;
+    margin: 0 auto;
+  }
+
+  .verse {
+    opacity: 0;
+    transform: translateY(40px);
+    transition: opacity 1.2s ease, transform 1.2s ease;
+    margin-bottom: 5rem;
+  }
+  .verse.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .verse-number {
+    font-family: 'Cinzel', serif;
+    font-size: 0.6rem;
+    letter-spacing: 0.6em;
+    color: var(--horizon-amber);
+    opacity: 0.6;
+    margin-bottom: 1.5rem;
+    text-transform: uppercase;
+  }
+
+  .verse-text {
+    font-size: clamp(1.3rem, 3vw, 2rem);
+    line-height: 1.8;
+    font-weight: 300;
+    color: var(--star-white);
+  }
+
+  .verse-text em {
+    font-style: italic;
+    color: rgba(232,228,217,0.7);
+  }
+
+  .word-highlight {
+    position: relative;
+    color: var(--horizon-amber);
+    font-style: italic;
+  }
+  .word-highlight::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0; right: 0;
+    height: 1px;
+    background: var(--horizon-amber);
+    opacity: 0.4;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 1s ease 0.5s;
+  }
+  .verse.visible .word-highlight::after {
+    transform: scaleX(1);
+  }
+
+  /* ---- DIVIDER ---- */
+  .divider {
+    width: 80px;
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--horizon-amber), transparent);
+    margin: 3rem auto;
+    opacity: 0;
+    transition: opacity 1.2s ease;
+  }
+  .divider.visible { opacity: 1; }
+
+  /* ---- CLOSING ---- */
+  #closing {
+    min-height: 100vh;
+  }
+
+  .closing-text {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(1rem, 2.5vw, 1.5rem);
+    font-style: italic;
+    line-height: 2;
+    text-align: center;
+    max-width: 600px;
+    color: rgba(232,228,217,0.8);
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 1.5s ease, transform 1.5s ease;
+  }
+  .closing-text.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .final-word {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(0.7rem, 1.5vw, 1rem);
+    letter-spacing: 0.5em;
+    text-transform: uppercase;
+    color: var(--horizon-amber);
+    margin-top: 4rem;
+    opacity: 0;
+    transition: opacity 2s ease 0.5s;
+  }
+  .final-word.visible { opacity: 1; }
+
+  /* ---- SHANTI SECTION ---- */
+  #shanti {
+    min-height: 60vh;
+  }
+
+  .shanti-word {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(4rem, 15vw, 12rem);
+    font-weight: 300;
+    font-style: italic;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    opacity: 0;
+    transform: scale(0.9);
+    transition: opacity 2s ease, transform 2s ease;
+    background: linear-gradient(135deg, var(--star-white) 30%, var(--horizon-amber) 70%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .shanti-word.visible {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .shanti-sub {
+    font-size: clamp(0.65rem, 1.2vw, 0.8rem);
+    letter-spacing: 0.6em;
+    text-transform: uppercase;
+    color: rgba(232,228,217,0.4);
+    font-family: 'Cinzel', serif;
+    margin-top: 2rem;
+    opacity: 0;
+    transition: opacity 2s ease 0.8s;
+  }
+  .shanti-sub.visible { opacity: 1; }
+
+  /* ---- PARTICLES ---- */
+  .particle-container {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  @keyframes fadeUp {
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes scrollPulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 0.2; }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0) translateX(0); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 0.5; }
+    100% { transform: translateY(-100vh) translateX(20px); opacity: 0; }
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 2px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--horizon-amber); opacity: 0.5; }
+</style>
+</head>
+<body>
+
+<canvas id="ocean-canvas"></canvas>
+<div class="cursor" id="cursor"></div>
+<div class="cursor-trail" id="cursorTrail"></div>
+<div class="particle-container" id="particles"></div>
+
+<!-- INTRO -->
+<section id="intro">
+  <p class="opening-line">Untuk dirimu — selalu</p>
+  <h1 class="main-title">
+    Anuraga<br>
+    <em>& Shanti</em>
+  </h1>
+  <div class="scroll-hint">
+    <span>Gulir ke bawah</span>
+    <div class="scroll-line"></div>
+  </div>
+</section>
+
+<!-- VERSE 1 -->
+<section>
+  <div class="poem-section">
+    <div class="verse" data-reveal>
+      <p class="verse-number">I</p>
+      <p class="verse-text">
+        Terima kasih,<br>
+        telah bersama ku selama ini<br>
+        dalam ikatan <span class="word-highlight">Anuraga</span> —<br>
+        <em>kasih sayang yang tak perlu banyak kata</em>
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- VERSE 2 -->
+<section>
+  <div class="poem-section">
+    <div class="verse" data-reveal>
+      <p class="verse-number">II</p>
+      <p class="verse-text">
+        Setiap momen yang kita ukir,<br>
+        setiap diam yang kita maknai bersama —<br>
+        <em>itu semua tinggal di sini,</em><br>
+        tidak pergi ke mana pun.
+      </p>
+    </div>
+
+    <div class="divider" data-reveal></div>
+
+    <div class="verse" data-reveal>
+      <p class="verse-text" style="font-size: clamp(1rem, 2vw, 1.4rem); color: rgba(232,228,217,0.65);">
+        Ini bukan perpisahan.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- VERSE 3 -->
+<section>
+  <div class="poem-section">
+    <div class="verse" data-reveal>
+      <p class="verse-number">III</p>
+      <p class="verse-text">
+        Ini hanya ucapan<br>
+        pada <span class="word-highlight">Arka</span> yang akan datang —<br>
+        <em>fajar baru, cahaya baru,</em><br>
+        membawa sesuatu yang lebih tenang.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- SHANTI -->
+<section id="shanti">
+  <div class="shanti-word" data-reveal>Shanti</div>
+  <div class="shanti-sub" data-reveal>Kedamaian · Peace · शान्ति</div>
+</section>
+
+<!-- CLOSING -->
+<section id="closing">
+  <div class="closing-text" data-reveal>
+    "Seperti laut setelah matahari terbenam —<br>
+    masih ada, masih tenang,<br>
+    hanya sedang belajar menjadi malam."
+  </div>
+  <div class="final-word" data-reveal>Sampai Jadi Debu</div>
+</section>
+
+<script>
+// ---- CURSOR ----
+const cursor = document.getElementById('cursor');
+const trail = document.getElementById('cursorTrail');
+let mx = 0, my = 0;
+document.addEventListener('mousemove', e => {
+  mx = e.clientX; my = e.clientY;
+  cursor.style.left = mx - 3 + 'px';
+  cursor.style.top = my - 3 + 'px';
+  setTimeout(() => {
+    trail.style.left = mx - 15 + 'px';
+    trail.style.top = my - 15 + 'px';
+  }, 80);
+});
+
+// ---- OCEAN CANVAS ----
+const canvas = document.getElementById('ocean-canvas');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let stars = [];
+let waves = [];
+let t = 0;
+
+function initStars() {
+  stars = [];
+  for (let i = 0; i < 180; i++) {
+    stars.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height * 0.55,
+      r: Math.random() * 1.2 + 0.2,
+      a: Math.random(),
+      speed: Math.random() * 0.004 + 0.001,
+      phase: Math.random() * Math.PI * 2
+    });
+  }
+}
+
+function drawOcean() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  t += 0.008;
+
+  const scrollY = window.scrollY;
+  const progress = Math.min(scrollY / (document.body.scrollHeight - window.innerHeight), 1);
+
+  // Sky gradient — shifts from twilight to deep night as you scroll
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height * 0.65);
+  const r1 = Math.round(26 - progress * 16);
+  const g1 = Math.round(21 - progress * 5);
+  const b1 = Math.round(53 - progress * 20);
+  const r2 = Math.round(13 + progress * 5);
+  const g2 = Math.round(27 - progress * 5);
+  const b2 = Math.round(46);
+  skyGrad.addColorStop(0, `rgb(${r1},${g1},${b1})`);
+  skyGrad.addColorStop(0.6, `rgb(${r2},${g2},${b2})`);
+  skyGrad.addColorStop(1, `rgb(10,14,26)`);
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, canvas.width, canvas.height * 0.65);
+
+  // Horizon glow
+  const horizonGlow = ctx.createRadialGradient(
+    canvas.width * 0.5, canvas.height * 0.6, 0,
+    canvas.width * 0.5, canvas.height * 0.6, canvas.width * 0.55
+  );
+  const glowA = Math.max(0, 0.25 - progress * 0.15);
+  horizonGlow.addColorStop(0, `rgba(201,125,42,${glowA})`);
+  horizonGlow.addColorStop(0.4, `rgba(139,58,82,${glowA * 0.5})`);
+  horizonGlow.addColorStop(1, 'transparent');
+  ctx.fillStyle = horizonGlow;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Stars
+  stars.forEach(s => {
+    s.a = 0.3 + 0.7 * Math.abs(Math.sin(t * s.speed * 10 + s.phase));
+    const starAlpha = s.a * Math.min(1, progress * 3 + 0.2);
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(232,228,217,${starAlpha})`;
+    ctx.fill();
+  });
+
+  // Moon (subtle)
+  const moonAlpha = Math.min(progress * 2, 0.7);
+  const moonGrad = ctx.createRadialGradient(
+    canvas.width * 0.72, canvas.height * 0.12, 0,
+    canvas.width * 0.72, canvas.height * 0.12, 40
+  );
+  moonGrad.addColorStop(0, `rgba(232,228,217,${moonAlpha * 0.6})`);
+  moonGrad.addColorStop(0.4, `rgba(232,228,217,${moonAlpha * 0.2})`);
+  moonGrad.addColorStop(1, 'transparent');
+  ctx.fillStyle = moonGrad;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.beginPath();
+  ctx.arc(canvas.width * 0.72, canvas.height * 0.12, 18, 0, Math.PI * 2);
+  ctx.fillStyle = `rgba(240,235,220,${moonAlpha * 0.5})`;
+  ctx.fill();
+
+  // Ocean body
+  const oceanY = canvas.height * 0.6;
+  const oceanGrad = ctx.createLinearGradient(0, oceanY, 0, canvas.height);
+  oceanGrad.addColorStop(0, '#0d1b2e');
+  oceanGrad.addColorStop(0.3, '#0a1525');
+  oceanGrad.addColorStop(1, '#060d18');
+  ctx.fillStyle = oceanGrad;
+  ctx.fillRect(0, oceanY, canvas.width, canvas.height - oceanY);
+
+  // Moon reflection
+  const refX = canvas.width * 0.72;
+  const refGrad = ctx.createLinearGradient(refX - 40, oceanY, refX + 40, canvas.height);
+  refGrad.addColorStop(0, `rgba(232,228,217,${moonAlpha * 0.15})`);
+  refGrad.addColorStop(1, 'transparent');
+  ctx.fillStyle = refGrad;
+  ctx.fillRect(refX - 20, oceanY, 40, canvas.height - oceanY);
+
+  // Waves
+  for (let w = 0; w < 5; w++) {
+    const waveY = oceanY + w * 18 + Math.sin(t * 0.8 + w) * 5;
+    const alpha = 0.04 + w * 0.015;
+    ctx.beginPath();
+    ctx.moveTo(0, waveY);
+    for (let x = 0; x <= canvas.width; x += 8) {
+      const y = waveY + Math.sin((x / canvas.width) * Math.PI * 4 + t + w * 0.7) * (6 + w * 2);
+      ctx.lineTo(x, y);
+    }
+    ctx.lineTo(canvas.width, canvas.height);
+    ctx.lineTo(0, canvas.height);
+    ctx.closePath();
+    ctx.fillStyle = `rgba(15,39,68,${alpha})`;
+    ctx.fill();
+
+    // wave foam
+    ctx.beginPath();
+    ctx.moveTo(0, waveY);
+    for (let x = 0; x <= canvas.width; x += 8) {
+      const y = waveY + Math.sin((x / canvas.width) * Math.PI * 4 + t + w * 0.7) * (6 + w * 2);
+      ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = `rgba(232,228,217,${0.03 + w * 0.01})`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  requestAnimationFrame(drawOcean);
+}
+
+initStars();
+drawOcean();
+
+window.addEventListener('resize', () => {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  initStars();
+});
+
+// ---- SCROLL REVEAL ----
+const reveals = document.querySelectorAll('[data-reveal]');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.2, rootMargin: '0px 0px -80px 0px' });
+
+reveals.forEach(el => observer.observe(el));
+
+// ---- FLOATING PARTICLES ----
+function createParticle() {
+  const p = document.createElement('div');
+  p.style.cssText = `
+    position: absolute;
+    width: ${Math.random() * 3 + 1}px;
+    height: ${Math.random() * 3 + 1}px;
+    background: rgba(201,125,42,${Math.random() * 0.4 + 0.1});
+    border-radius: 50%;
+    left: ${Math.random() * 100}vw;
+    bottom: -10px;
+    animation: float ${Math.random() * 15 + 10}s linear infinite;
+    animation-delay: ${Math.random() * 10}s;
+  `;
+  document.getElementById('particles').appendChild(p);
+}
+for (let i = 0; i < 25; i++) createParticle();
+</script>
+</body>
+</html>
